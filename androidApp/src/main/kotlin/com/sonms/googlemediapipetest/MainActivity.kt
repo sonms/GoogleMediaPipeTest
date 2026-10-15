@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,6 +38,7 @@ class MainActivity : ComponentActivity() {
     private var result by mutableStateOf<FaceDetectionResult?>(null)
     private var recorderUi by mutableStateOf(RecorderUi())
     private var compareMode by mutableStateOf(false)
+    private var showCamera by mutableStateOf(true)
     private var cameraGranted by mutableStateOf(false)
     private val analysisExecutor = Executors.newSingleThreadExecutor()
 
@@ -44,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private val detectors = ArrayList<FaceDetector>()
     private var recorder: SessionRecorder? = null
     private var comparison: ComparisonRecorder? = null
+    private var nextDueMs = 0L
 
     private val config = FaceDetectorConfig(MODEL_ASSET, outputBlendshapes = true, outputTransformationMatrix = true)
 
@@ -53,6 +56,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) // long recordings must not lose the camera
 
         cameraGranted = checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         if (!cameraGranted) requestCamera.launch(Manifest.permission.CAMERA)
@@ -65,6 +69,8 @@ class MainActivity : ComponentActivity() {
                     onToggleRecording = { analysisExecutor.execute(::toggleRecording) },
                     onToggleCompare = { if (!recorderUi.recording) compareMode = !compareMode },
                     mirrorOverlay = true,
+                    showCamera = showCamera,
+                    onToggleCamera = ::toggleCamera,
                 ) {
                     AndroidView(
                         factory = { context -> PreviewView(context).also(::bindCamera) },
@@ -77,10 +83,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun bindCamera(previewView: PreviewView) {
+    /** Analysis always runs; the preview use case is bound only while [previewView] is non-null. */
+    private fun bindCamera(previewView: PreviewView?) {
         val providerFuture = ProcessCameraProvider.getInstance(this)
         providerFuture.addListener({
-            val preview = Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+            val preview = previewView?.let { view -> Preview.Builder().build().also { it.surfaceProvider = view.surfaceProvider } }
             val analysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
@@ -88,14 +95,21 @@ class MainActivity : ComponentActivity() {
                 .also { it.setAnalyzer(analysisExecutor, ::analyze) }
             providerFuture.get().run {
                 unbindAll()
-                bindToLifecycle(this@MainActivity, CameraSelector.DEFAULT_FRONT_CAMERA, preview, analysis)
+                bindToLifecycle(this@MainActivity, CameraSelector.DEFAULT_FRONT_CAMERA, *listOfNotNull(preview, analysis).toTypedArray())
             }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    private fun toggleCamera() {
+        if (recorderUi.recording) return
+        showCamera = !showCamera
+        if (!showCamera) bindCamera(null) // the preview view leaves composition; rebind analysis only
     }
 
     private fun analyze(image: ImageProxy) {
         image.use {
             val timestampMs = SystemClock.uptimeMillis()
+            if (comparison == null && !dueForSingleMode(timestampMs)) return // skip before the costly bitmap conversion
             val frame = image.toBitmap().toFrame(image.imageInfo.rotationDegrees, timestampMs)
             val compared = comparison
             if (compared != null) {
@@ -117,6 +131,14 @@ class MainActivity : ComponentActivity() {
                 if (limitReached) stopRecording()
             }
         }
+    }
+
+    /** Caps single mode at [TARGET_FPS] on the camera timestamps; half a camera frame of slack, no drift. Analysis thread only. */
+    private fun dueForSingleMode(nowMs: Long): Boolean {
+        val intervalMs = 1000L / TARGET_FPS
+        if (nowMs < nextDueMs - CAMERA_HALF_FRAME_MS) return false
+        nextDueMs = if (nowMs - nextDueMs > intervalMs) nowMs + intervalMs else nextDueMs + intervalMs
+        return true
     }
 
     private fun ensureDetectors(count: Int) {
@@ -148,7 +170,7 @@ class MainActivity : ComponentActivity() {
         if (compareMode) {
             comparison = ComparisonRecorder(outputDir, env, config, startedAt)
         } else {
-            recorder = SessionRecorder(outputDir, env, config, targetFps = 30, startedAtEpochMs = startedAt)
+            recorder = SessionRecorder(outputDir, env, config, targetFps = TARGET_FPS, startedAtEpochMs = startedAt)
         }
         recorderUi = RecorderUi(recording = true)
     }
@@ -173,5 +195,9 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val MODEL_ASSET = "face_landmarker.task"
+
+        /** Single-mode processing rate. Keep it below what the device sustains so preview on/off compare equal work. */
+        const val TARGET_FPS = 8
+        private const val CAMERA_HALF_FRAME_MS = 16L
     }
 }
