@@ -5,12 +5,13 @@ Package `com.sonms.landmarkkit`, iOS framework `LandmarkKit`. Do not use "MediaP
 ## Public API
 - `commonMain` exposes only interfaces and data types (e.g. `FaceDetector`, `Frame`, result/landmark types).
 - Platform implementations (`androidMain`, `iosMain`) are `internal`.
-- Consumers create detectors via one `expect/actual` factory (e.g. `createFaceDetector(config)`). No public `expect class`.
+- Consumers create detectors via one `expect/actual` factory per task (`createFaceDetector(context, config)`). The only public `expect` class is `PlatformContext` (Android `Context` typealias; iOS `IosPlatformContext()`).
+- iOS file names: top-level declarations in `iosMain` become Obj-C facades named after the file and are merged into the `Shared` framework. Keep file names unique across `landmarkkit` and `shared` (e.g. `Detectors.ios.kt`, `FrameHelpers.ios.kt`; never `Platform.ios.kt`).
 - Public API changes need user approval; the API must stay stable for external consumers.
 
 ## Frame
 - Common `Frame` type: width, height, rotation, timestamp, plus platform-held native data.
-- Provide conversion helpers only: Android `ImageProxy`/`Bitmap` -> `Frame`, iOS `CVPixelBuffer` -> `Frame`. Avoid per-frame copies.
+- Provide conversion helpers only: Android `Bitmap.toFrame` (the app module converts `ImageProxy.toBitmap()`; the core must not depend on CameraX), iOS `CMSampleBufferRef.toFrame` (MediaPipe iOS accepts `UIImage`/`CMSampleBuffer`, not `CVPixelBuffer`). Avoid per-frame copies.
 - Never add capture code.
 
 ## Models
