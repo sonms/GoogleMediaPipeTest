@@ -30,7 +30,7 @@ Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 
 ## iOS 빠른 안내 (Mac 전용)
 
-> **상태: iOS unverified.** iOS용 Kotlin 코드(cinterop), Swift 카메라, CocoaPods 연결은 Windows에서 작성했고
+> **상태: iOS unverified.** iOS용 Kotlin 코드(cinterop), Swift 카메라, CocoaPods 연결은 Windows에서 작성
 
 **요구 사항(타겟은 조절이 필요할 수 있음):** macOS, Xcode, CocoaPods, JDK 17 이상, 배포 대상 iOS 17.0 이상.
 MediaPipe Tasks Vision `0.10.21`(`gradle/libs.versions.toml`에 고정)을 사용합니다.
