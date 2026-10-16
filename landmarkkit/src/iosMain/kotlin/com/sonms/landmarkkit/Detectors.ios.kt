@@ -8,11 +8,12 @@ import cocoapods.MediaPipeTasksVision.MPPFaceLandmarker
 import cocoapods.MediaPipeTasksVision.MPPFaceLandmarkerOptions
 import cocoapods.MediaPipeTasksVision.MPPImage
 import cocoapods.MediaPipeTasksVision.MPPNormalizedLandmark
-import cocoapods.MediaPipeTasksVision.MPPRunningModeVideo
+import cocoapods.MediaPipeTasksVision.MPPRunningMode
 import cocoapods.MediaPipeTasksVision.MPPTransformMatrix
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
@@ -35,7 +36,7 @@ internal class IosFaceDetector(config: FaceDetectorConfig) : FaceDetector {
     init {
         val options = MPPFaceLandmarkerOptions()
         options.baseOptions.modelAssetPath = config.modelPath
-        options.runningMode = MPPRunningModeVideo
+        options.runningMode = MPPRunningMode.MPPRunningModeVideo
         options.numFaces = config.maxFaces.toLong()
         options.minFaceDetectionConfidence = config.minFaceDetectionConfidence
         options.minFacePresenceConfidence = config.minFacePresenceConfidence
@@ -55,7 +56,7 @@ internal class IosFaceDetector(config: FaceDetectorConfig) : FaceDetector {
             val error = alloc<ObjCObjectVar<NSError?>>()
             val image = MPPImage(sampleBuffer = data.sampleBuffer, orientation = data.orientation, error = error.ptr)
                 ?: error("LandmarkKit: failed to wrap frame: ${error.value?.localizedDescription}")
-            val result = landmarker.detectInVideoFrame(
+            val result = landmarker.detectVideoFrame(
                 image,
                 timestampInMilliseconds = frame.timestampMs,
                 error = error.ptr,

@@ -17,8 +17,8 @@ internal class IosFrameData(val sampleBuffer: CMSampleBufferRef, val orientation
 
 // UIImageOrientation: 0 Up, 1 Down, 2 Left, 3 Right.
 private fun Int.toOrientation(): UIImageOrientation = when (((this % 360) + 360) % 360) {
-    90 -> 3L
-    180 -> 1L
-    270 -> 2L
-    else -> 0L
+    90 -> UIImageOrientation.UIImageOrientationRight
+    180 -> UIImageOrientation.UIImageOrientationDown
+    270 -> UIImageOrientation.UIImageOrientationLeft
+    else -> UIImageOrientation.UIImageOrientationUp
 }

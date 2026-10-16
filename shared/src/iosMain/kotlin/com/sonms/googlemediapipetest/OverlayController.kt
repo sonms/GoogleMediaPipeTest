@@ -3,6 +3,7 @@ package com.sonms.googlemediapipetest
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeUIViewController
 import com.sonms.landmarkkit.FaceDetectionResult
 import platform.UIKit.UIViewController
@@ -11,6 +12,7 @@ import platform.UIKit.UIViewController
 class OverlayController {
     private var result by mutableStateOf<FaceDetectionResult?>(null)
 
+    @OptIn(ExperimentalComposeUiApi::class)
     val viewController: UIViewController = ComposeUIViewController(configure = { opaque = false }) {
         FaceOverlay(result)
     }

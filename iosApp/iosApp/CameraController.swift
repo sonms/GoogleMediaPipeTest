@@ -90,7 +90,7 @@ final class CameraController: NSObject, ObservableObject, AVCaptureVideoDataOutp
                 env: env,
                 config: makeConfig(path: path),
                 startedAtEpochMs: startedAt,
-                fpsList: ComparisonRecorderKt.compareFps,
+                fpsList: ComparisonRecorderKt.CompareFps,
                 decimals: 6,
                 maxDurationMs: maxDurationMs
             )
@@ -103,7 +103,7 @@ final class CameraController: NSObject, ObservableObject, AVCaptureVideoDataOutp
                 startedAtEpochMs: startedAt,
                 decimals: 6,
                 maxDurationMs: maxDurationMs,
-                sessionId: SessionRecorderKt.newSessionId(),
+                sessionId: String(UInt64.random(in: UInt64.min...UInt64.max), radix: 16),
                 label: nil,
                 compareMode: false
             )
@@ -167,7 +167,7 @@ final class CameraController: NSObject, ObservableObject, AVCaptureVideoDataOutp
         let seconds = CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
         let timestampMs = Int64(seconds * 1000)
         let frame = FrameHelpers_iosKt.toFrame(
-            sampleBuffer,
+            Unmanaged.passUnretained(sampleBuffer).toOpaque(),
             width: Int32(CVPixelBufferGetWidth(pixelBuffer)),
             height: Int32(CVPixelBufferGetHeight(pixelBuffer)),
             rotationDegrees: 0,

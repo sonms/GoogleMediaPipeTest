@@ -29,13 +29,15 @@ Dependency direction: `androidApp`/`iosApp` -> `shared` -> `landmarkkit`. `landm
 - iOS compile, cinterop, and Xcode builds are impossible on Windows. Done = Android build + `commonMain`/`androidHostTest` pass.
 - After touching iOS code, state "iOS unverified" and list the commands to run on a Mac, e.g. `./gradlew :landmarkkit:iosSimulatorArm64Test`. Never claim iOS verified without running it.
 - Mac/CI availability: TBD.
-- Current state: Android fully builds (`:androidApp:assembleDebug`). iOS Kotlin (cinterop), Swift camera, and CocoaPods wiring were written blind and have never been compiled.
+- Current state: Android fully builds (`:androidApp:assembleDebug`). On Mac, iOS also builds and runs end-to-end (`xcodebuild ... -workspace iosApp/iosApp.xcworkspace -scheme iosApp`, installed and launched on simulator) as of 2026-10-06. The iOS first-run checklist below has been completed once; re-run it only if `Podfile`/cocoapods config changes.
 
-## iOS first-run checklist (Mac only)
+## iOS first-run checklist (Mac only, done once — see note above)
 1. `./gradlew :shared:podspec`, then in `iosApp/` run `pod install` and open `iosApp.xcworkspace`.
 2. In Xcode, delete the "Run Script" build phase that calls `:shared:embedAndSignAppleFrameworkForXcode` (replaced by CocoaPods).
-3. Fix cinterop name mismatches if any (`MPPFaceLandmarker`, `MPPImage`, Swift names `Detectors_iosKt`, `FrameHelpers_iosKt`).
+3. Cinterop name mismatches fixed: `MPPRunningMode`/`UIImageOrientation` are Kotlin enum classes (`EnumClass.CASE_NAME`, not a top-level import), `detectVideoFrame` (not `detectInVideoFrame`), `kotlinx.cinterop.get` must be imported explicitly for `CPointer` indexing.
 4. Compose resources with CocoaPods may need the `syncComposeResourcesForIos` step if resources are used (currently none are).
+5. Swift call sites must pass every Kotlin constructor/function parameter explicitly — Kotlin/Native's ObjC export does not expose default-parameter overloads, and `internal` Kotlin declarations (e.g. `newSessionId()`) aren't visible to Swift at all.
+6. A C pointer typedef param (e.g. `CMSampleBufferRef`) shows up in Swift as `UnsafeMutableRawPointer`; bridge a Swift CF object with `Unmanaged.passUnretained(x).toOpaque()`.
 
 ## Commands
 - Android app: `./gradlew :androidApp:assembleDebug`
