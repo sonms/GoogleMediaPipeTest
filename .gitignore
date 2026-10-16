@@ -17,3 +17,9 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# measurement sessions (face landmark data, never commit)
+.sessions/
+
+# CocoaPods (restore with `pod install`; Podfile.lock stays tracked)
+iosApp/Pods/

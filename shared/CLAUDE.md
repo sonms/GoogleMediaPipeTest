@@ -1,4 +1,4 @@
-# shared (harness, common UI)
+# shared (common module, common UI)
 
 - Common Compose screens only: result display, landmark overlay, settings.
 - No camera code and no platform camera dependencies here. Frames come from `androidApp` / `iosApp`.
